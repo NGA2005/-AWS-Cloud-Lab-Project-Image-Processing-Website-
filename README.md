@@ -45,7 +45,7 @@ Sous-réseau Privé (10.0.2.0/24)
 
 Restriction : Tout accès entrant de l'extérieur est bloqué (y compris depuis le sous-réseau public, grâce aux SGs).
 
-ÉTAPE 2 : Stockage et Livraison de Médias (CDN)
+Phase 2 : Stockage et Livraison de Médias (CDN)
 
 L'objectif principal de cette étape est de mettre en place une architecture de distribution de contenu. Cela implique le stockage sécurisé des images et leur diffusion à l'échelle mondiale via un réseau de diffusion de contenu rapide (CDN) sécurisé par HTTPS.
 
@@ -54,7 +54,7 @@ L'objectif principal de cette étape est de mettre en place une architecture de 
 1. Stocker les images dans un service objet hautement disponible.
 2. Accélérer la livraison des images à l'échelle mondiale.
 3. Sécuriser tout le trafic vers le domaine média avec un certificat SSL/TLS (HTTPS).
-4. Relier l'URL conviviale (`cdn-media.aurorasocialcloud.org`) au CDN.
+4. Relier l'URL conviviale ('cdn-media.eazimusicschoolandevents.com') au CDN.
 
  Services AWS Utilisés
 
@@ -63,7 +63,7 @@ L'objectif principal de cette étape est de mettre en place une architecture de 
 S3 (Simple Storage Service)     Stockage principal et fiable des images (`public/for images`). C'est l'Origine du contenu. 
 CloudFront                       Content Delivery Network (CDN). Il met en cache les images sur des points de présence mondiaux pour une livraison rapide. 
 ACM (Certificate Manager)     Crée le certificat SSL/TLS pour garantir la connexion HTTPS. 
-Route 53                        Gère le domaine (`aurorasocialcloud.org`) et crée le lien final entre le CNAME et le CDN.
+Route 53                        Gère le domaine (`cdn-media.eazimusicschoolandevents.com`) et crée le lien final entre le CNAME et le CDN.
 
 
  Instructions Détaillées (Rappel)
@@ -80,8 +80,8 @@ Permissions                Les permissions de lecture publique sont activées, o
 
  Instruction  Détails 
  
-|Région   Le certificat SSL/TLS pour le CDN doit être créé dans  USA Est (Virginie du Nord). 
-Certificat  Demande de certificat  pouR`*.aurorasocialcloud.org` (recommandé pour la flexibilité). 
+Région      Le certificat SSL/TLS pour le CDN doit être créé dans  USA Est (Virginie du Nord). 
+Certificat  Demande de certificat  pour `*.eazimusicschoolandevents.com` et  `*.eazimusicschoolandevents.com`
 Validation  Validation du certificat par l'ajout de l'enregistrement **CNAME** fourni par ACM dans la zone hébergée Route 53.
 
 3. Distribution de Contenu (CloudFront)
@@ -89,27 +89,23 @@ Validation  Validation du certificat par l'ajout de l'enregistrement **CNAME** f
  Instruction    Détails 
 
  Origine        Pointage de la distribution vers le Bucket S3. 
-  CNAME         `cdn-media.aurorasocialcloud.org` est configuré comme nom de domaine alternatif. 
-Certificat   Le certificat ACM (pour `*.aurorasocialcloud.org`) est sélectionné pour activer HTTPS.
+  CNAME         `cdn-media.eazimusicschoolandevents.com` est configuré comme nom de domaine alternatif. 
+Certificat   Le certificat ACM (pour `cdn-media.eazimusicschoolandevents.com `) est sélectionné pour activer HTTPS.
 
  4. Configuration DNS Finale (Route 53)
 
  Instruction      Détails 
 
-Zone Hébergée      La zone    `aurorasocialcloud.org`   est créée et gérée dans Route 53. 
+Zone Hébergée      La zone    `eazimusicschoolandevents.com`   est créée et gérée dans Route 53. 
 Enregistrement A   Un enregistrement de type  A Alias est créé pour lier le CNAME au CDN. 
-Lien Final         `cdn-media.aurorasocialcloud.org` → Cible :  Distribution CloudFront .
+Lien Final         `cdn-media.eazimusicschoolandevents.com` → Cible :  Distribution CloudFront .
 
 
 - Résultat de l'Étape
 
 À la fin de cette étape, toutes les images stockées dans S3 seront accessibles de manière rapide et sécurisée via l'URL suivante :
 
-`https://cdn-media.aurorasocialcloud.org/<nom_image>.jpg`
+`https://cdn-media.eazimusicschoolandevents.com/<nom_image>.jpg`
 
 
 
-
-
-Prochaine Étape (Phase 2)
-Maintenant que le réseau est stable et sécurisé, la prochaine étape consistera à configurer le stockage des médias et la diffusion de contenu en déployant le bucket S3 et la distribution CloudFront.
