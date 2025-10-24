@@ -1,111 +1,127 @@
-Laboratoire AWS - Sécurisation de l'Architecture VPC (Phase 1/8)
-Projet : Site Web de Traitement d'Images
-Ce rapport concerne la première phase critique de notre projet : la mise en place de l'infrastructure réseau de base (VPC) sur AWS. Cette base assure l'isolation et la sécurité de toutes nos futures ressources (Serveur Web, Lambda, RDS) dès le démarrage du projet.
+# 📝 Laboratoire AWS - site web de traitement d'images
 
-- Objectifs de la Phase 1 : Fondation du Réseau
-L'objectif de cette phase était de mettre en place un réseau VPC hautement segmenté afin de séparer le trafic public (accès Web) du trafic privé (composants d'application et base de données).
+Ce rapport documente les phases de la mise en place du projet du Site Web de Traitement d'Images.
 
-Composant		              Rôle			                               Contraintes de l'Énoncé	     Statut
-VPC Principal	         	Conteneur du réseau			                	10.0.0.0/16                    ✅ Réalisé
-                                        
-Sous-réseau Public	    Pour le serveur web et la NAT-GW			     10.0.1.0/24                  ✅ Réalisé
-			
-Sous-réseau Privé		    Pour Lambda et RDS			                   10.0.2.0/24 	                 ✅ Réalisé		
+***
 
-Routage		              Contrôle du flux de trafic		             Public → IGW, Privé → NAT-GW 	✅ Configuré
-		
+## 🛡️ Phase 1 : Fondation du Réseau (VPC)
 
-- Configuration du Réseau
+### Objectif
+Mettre en place un réseau VPC hautement segmenté pour isoler le trafic public (serveur Web) du trafic privé (base de données et composants d'application Lambda).
 
-La configuration des composants réseau et des règles de routage a été effectuée via la console AWS.
+### Composants Réseau
 
-Routage et Passerelles
-Composant		                 Emplacement		          Détails de la Configuration
+| Composant | Rôle | Contrainte de l'Énoncé | Statut |
+| :--- | :--- | :--- | :--- |
+| **VPC Principal** | Conteneur du réseau | `10.0.0.0/16` | ✅ Réalisé |
+| **Sous-réseau Public** | Pour le serveur web et la NAT-GW | `10.0.1.0/24` | ✅ Réalisé |
+| **Sous-réseau Privé** | Pour Lambda et RDS | `10.0.2.0/24` | ✅ Réalisé |
 
-Passerelle Internet (IGW)		Attachée au VPC 			    Route Table Publique configurée : 0.0.0.0/0 ciblant l'IGW.
+### Routage et Passerelles
 
-Passerelle NAT (NAT-GW)		Sous-réseau Public 			    Route Table Privée configurée : 0.0.0.0/0 ciblant la NAT-GW. (Requiert une EIP allouée).
+| Composant | Emplacement | Détails de la Configuration |
+| :--- | :--- | :--- |
+| **Passerelle Internet (IGW)** | Attachée au VPC | Route Table Publique configurée : `0.0.0.0/0` ciblant l'IGW. |
+| **Passerelle NAT (NAT-GW)** | Sous-réseau Public | Route Table Privée configurée : `0.0.0.0/0` ciblant la NAT-GW (avec EIP allouée). |
 
+### Isolation et Sécurité (NACLs et Security Groups)
 
-- Isolation et Sécurité (NACLs et Security Groups)
+* **Sous-réseau Public (`10.0.1.0/24`) :**
+    * **Objectif :** Autoriser le trafic web standard et l'administration.
+    * **Règles Clés :** NACLs et SGs autorisent HTTP (Port 80) et SSH (Port 22) entrant, et gèrent le trafic sortant, y compris le correctif HTTPS (Port 443) pour les mises à jour.
 
-Une double couche de sécurité a été appliquée (NACL pour le sous-réseau et SG pour la ressource) pour répondre aux exigences de la phase 6.
+* **Sous-réseau Privé (`10.0.2.0/24`) :**
+    * **Objectif :** Restriction maximale.
+    * **Règles Clés :** Tout accès entrant de l'extérieur est bloqué. Les règles sont limitées à l'accès fonctionnel interne (ex: Lambda → RDS).
 
-Sous-réseau Public (10.0.1.0/24)
+***
 
-  Objectif : Autoriser le trafic web standard et l'administration.
+## 🖼️ Phase 2 : Stockage et Livraison de Médias (CDN)
 
-  Règles Clés : Les NACLs et SGs sont configurés pour autoriser le trafic HTTP (Port 80) et SSH (Port 22) entrant.  
+### Objectifs
+1.  Stocker les images dans un service objet hautement disponible (S3).
+2.  Accélérer la livraison des images à l'échelle mondiale (CloudFront).
+3.  Sécuriser le trafic vers le domaine média avec HTTPS (ACM).
+4.  Relier l'URL conviviale (`cdn-media.eazimusicschoolandevents.com`) au CDN (Route 53).
 
-Sous-réseau Privé (10.0.2.0/24)
+### Services AWS Utilisés
 
-   Objectif : Restriction maximale, avec une exception fonctionnelle.
+| Service | Rôle dans l'Architecture |
+| :--- | :--- |
+| **S3** (Simple Storage Service) | Stockage principal des images (`public/for images`). C'est l'Origine du contenu. |
+| **CloudFront** | Content Delivery Network (CDN) pour la mise en cache mondiale et la livraison rapide. |
+| **ACM** (Certificate Manager) | Crée le certificat SSL/TLS (région N. Virginia) pour garantir la connexion HTTPS. |
+| **Route 53** | Gère le CNAME final, liant le domaine alternatif au CDN. |
 
-   Règles Clés :
+### Configuration Détaillée
 
-Restriction : Tout accès entrant de l'extérieur est bloqué (y compris depuis le sous-réseau public, grâce aux SGs).
+1.  **Configuration du Stockage (S3)**
+    * **Bucket :** Créé avec la structure de dossier `public/for images`.
+    * **Permissions :** L'accès est restreint via **OAC (Origin Access Control)** sur CloudFront (méthode de sécurité préférée).
 
-Phase 2 : Stockage et Livraison de Médias (CDN)
+2.  **Sécurisation HTTPS (ACM)**
+    * **Région :** Le certificat SSL/TLS pour le CDN a été créé dans USA Est (Virginie du Nord).
+    * **Certificat :** Demande pour `*.eazimusicschoolandevents.com` validée via l'ajout d'un enregistrement CNAME dans Route 53.
 
-L'objectif principal de cette étape est de mettre en place une architecture de distribution de contenu. Cela implique le stockage sécurisé des images et leur diffusion à l'échelle mondiale via un réseau de diffusion de contenu rapide (CDN) sécurisé par HTTPS.
+3.  **Distribution de Contenu (CloudFront)**
+    * **Origine :** La distribution pointe vers le Bucket S3.
+    * **CNAME :** `cdn-media.eazimusicschoolandevents.com` est configuré comme nom de domaine alternatif.
+    * **Certificat :** Le certificat ACM est sélectionné pour activer HTTPS.
 
- Objectifs de l'Étape
+4.  **Configuration DNS Finale (Route 53)**
+    * **Lien Final :** Un enregistrement de type **A Alias** a été créé pour lier `cdn-media.eazimusicschoolandevents.com` à la Distribution CloudFront.
 
-1. Stocker les images dans un service objet hautement disponible.
-2. Accélérer la livraison des images à l'échelle mondiale.
-3. Sécuriser tout le trafic vers le domaine média avec un certificat SSL/TLS (HTTPS).
-4. Relier l'URL conviviale ('cdn-media.eazimusicschoolandevents.com') au CDN.
+### Résultat de l'Étape
 
- Services AWS Utilisés
+Toutes les images sont désormais accessibles de manière sécurisée et rapide via l'URL :
 
- Service                                            Rôle dans l'Architecture 
+$$\text{https://cdn-media.eazimusicschoolandevents.com/<nom\_image>.jpg}$$
+#  Phase 3 : Configuration du Serveur Web EC2
 
-S3 (Simple Storage Service)     Stockage principal et fiable des images (`public/for images`). C'est l'Origine du contenu. 
-CloudFront                       Content Delivery Network (CDN). Il met en cache les images sur des points de présence mondiaux pour une livraison rapide. 
-ACM (Certificate Manager)     Crée le certificat SSL/TLS pour garantir la connexion HTTPS. 
-Route 53                        Gère le domaine (`cdn-media.eazimusicschoolandevents.com`) et crée le lien final entre le CNAME et le CDN.
+## Objectif
 
+L'objectif de cette phase était de provisionner la couche d'hébergement frontal (frontend) de l'application. Cette couche repose sur une instance EC2 dans le sous-réseau public, configurée avec un serveur Apache (`httpd`), et accessible via le nom de domaine principal.
 
- Instructions Détaillées (Rappel)
+***
 
- 1. Configuration du Stockage (S3)
+## Actions Effectuées
 
- Instruction                 Détails 
+| # | Instruction | Détails de l'Implémentation | Statut |
+| :-: | :--- | :--- | :--- |
+| 1 | **Lancement de l'Instance EC2** | Instance `audrey-web-server` (`i-0bd5dc0780ef72d83`) lancée dans le Sous-réseau public. | ✅ |
+| 2 | **Installation et Configuration Web** | Le serveur Apache (`httpd`) a été installé, démarré et activé. Le code du frontend (`index.html`) a été déployé dans `/var/www/html/`. | ✅ |
+| 3 | **Correction de Connectivité** | Problème de *timeout* (délai d'expiration) lors du `yum update` résolu par l'ajout de la règle sortante **HTTPS (Port 443)** dans la NACL Publique. | ✅ |
+| 4 | **Configuration Route 53** | L'Enregistrement A pour le domaine racine (`eazimusicschoolandevents.com`) a été mis à jour pour pointer vers l'IP publique de l'EC2. | ✅ |
 
-Création du Bucket        Bucket S3 créé (Ex : `mon-projet-media-audrey`). |
-Dossier                  Structure de dossier : `public/for images`. |
-Permissions                Les permissions de lecture publique sont activées, ou l'accès est restreint via **OAC (Origin Access Control)** sur CloudFront (méthode de sécurité préférée).
+***
 
-2. Sécurisation HTTPS (ACM)
+## Détails Techniques Clés
 
- Instruction  Détails 
- 
-Région      Le certificat SSL/TLS pour le CDN doit être créé dans  USA Est (Virginie du Nord). 
-Certificat  Demande de certificat  pour `*.eazimusicschoolandevents.com` et  `*.eazimusicschoolandevents.com`
-Validation  Validation du certificat par l'ajout de l'enregistrement **CNAME** fourni par ACM dans la zone hébergée Route 53.
+| Composant | Valeur |
+| :--- | :--- |
+| **Instance EC2** | `i-0bd5dc0780ef72d83` (`audrey-web-server`) |
+| **IP Publique** | `13.60.69.149` |
+| **Service Web** | Apache (`httpd`), statut `active (running)` |
+| **Nom de Domaine** | `http://eazimusicschoolandevents.com` |
 
-3. Distribution de Contenu (CloudFront)
+***
 
- Instruction    Détails 
+## Vérification et Validation
 
- Origine        Pointage de la distribution vers le Bucket S3. 
-  CNAME         `cdn-media.eazimusicschoolandevents.com` est configuré comme nom de domaine alternatif. 
-Certificat   Le certificat ACM (pour `cdn-media.eazimusicschoolandevents.com `) est sélectionné pour activer HTTPS.
+Pour confirmer que la Phase 3 est terminée avec succès :
 
- 4. Configuration DNS Finale (Route 53)
+### 1. Accessibilité du Service Apache :
 
- Instruction      Détails 
+* **Action :** Exécutez sur l'EC2 : `sudo systemctl status httpd`
+* **Résultat attendu :** Statut `Active: active (running)`.
 
-Zone Hébergée      La zone    `eazimusicschoolandevents.com`   est créée et gérée dans Route 53. 
-Enregistrement A   Un enregistrement de type  A Alias est créé pour lier le CNAME au CDN. 
-Lien Final         `cdn-media.eazimusicschoolandevents.com` → Cible :  Distribution CloudFront .
+### 2. Accessibilité par Nom de Domaine (Frontend) :
 
+* **Action :** Ouvrez un navigateur et accédez à : `http://eazimusicschoolandevents.com`
+* **Résultat attendu :** La page du frontend doit s'afficher. Elle affichera le titre et le message de **"Chargement des métadonnées..."** (l'échec de l'appel à l'API Gateway est attendu à ce stade, car l'Étape 6 n'est pas encore implémentée).
 
-- Résultat de l'Étape
+***
 
-À la fin de cette étape, toutes les images stockées dans S3 seront accessibles de manière rapide et sécurisée via l'URL suivante :
-
-`https://cdn-media.eazimusicschoolandevents.com/<nom_image>.jpg`
 
 
 
