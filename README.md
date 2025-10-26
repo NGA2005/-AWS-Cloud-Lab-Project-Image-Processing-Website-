@@ -120,8 +120,64 @@ Pour confirmer que la Phase 3 est terminée avec succès :
 * **Action :** Ouvrez un navigateur et accédez à : `http://eazimusicschoolandevents.com`
 * **Résultat attendu :** La page du frontend doit s'afficher. Elle affichera le titre et le message de **"Chargement des métadonnées..."** (l'échec de l'appel à l'API Gateway est attendu à ce stade, car l'Étape 6 n'est pas encore implémentée).
 
+
+***
+## 💾 Phase 4 : Stockage des Métadonnées avec RDS
+
+### Objectif
+L'objectif de cette phase était de provisionner une base de données **MySQL gérée (RDS)** dans le **sous-réseau privé** pour stocker les métadonnées des images de manière **sécurisée et scalable**.
+
+Les **identifiants de connexion** devaient être stockés dans **AWS Secrets Manager**.
+
+***
+
+### Actions Effectuées
+
+| # | Instruction | Détails de l'Implémentation | Statut |
+| :--- | :--- | :--- | :--- |
+| **1** | **Lancement de l'Instance RDS** | Instance `audrey-database-rds` lancée dans le sous-réseau privé. Accessibilité publique désactivée. | ✅ |
+| **2** | **Configuration du Groupe de Sécurité** | Groupe de sécurité RDS modifié pour autoriser le trafic entrant sur le port **3306 (MySQL)** uniquement depuis le groupe de sécurité de l'EC2 et les groupes de sécurité des fonctions Lambda. | ✅ |
+| **3** | **Connexion du Client EC2 au Serveur RDS** | Connexion depuis l'EC2 vers le point de terminaison RDS établie avec succès en utilisant l'utilisateur **admin**. | ✅ |
+| **4** | **Création du Schéma (Base de Données)** | Schéma de base de données d'application **`image_project_db`** créé sur le serveur RDS. | ✅ |
+| **5** | **Création de la Table de Métadonnées** | Table **`media_metadata`** créée dans le schéma `image_project_db`. | ✅ |
+| **6** | **Stockage des Identifiants DB** | Identifiants de l'utilisateur admin stockés/liés dans **Secrets Manager** pour un accès sécurisé par les services Lambda. | ✅ |
+
+***
+
+### Détails Techniques Clés
+
+| Composant | Valeur |
+| :--- | :--- |
+| **Instance RDS** | `audrey-database-rds` |
+| **Type de Moteur** | MySQL Community (8.0.42) |
+| **Base de Données (Schéma)** | `image_project_db` |
+| **Identifiant Secret** | `image-project/rds-credentials` |
+
 ***
 
 
+## Vérification et Validation
 
 
+
+### 1. Création du Schéma et de la Table :
+
+* **Action :** Exécutez sur l'EC2, puis dans le client MySQL :
+  ```sql
+  CREATE DATABASE image_project_db; 
+  USE image_project_db; 
+  CREATE TABLE media_metadata ( 
+      id SERIAL PRIMARY KEY, 
+      filename VARCHAR(255), 
+      size BIGINT, 
+      content_type VARCHAR(100), 
+      upload_time TIMESTAMP 
+  );
+* **Résultat attendu :** Les commandes SQL doivent s'exécuter sans erreur.
+  
+### 2. Accessibilité de la Table :
+
+* **Action :** Ouvrez une connexion MySQL et exécutez la commande :
+  ```sql
+  SHOW TABLES FROM image_project_db;
+* **Résultat attendu :** La table media_metadata doit s'afficher (confirme la persistance des données sur le RDS).
